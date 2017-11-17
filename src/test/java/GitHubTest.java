@@ -1,6 +1,5 @@
 
 import controls.Base;
-import core.Driver;
 import core.PropertiesContainer;
 import core.TestBase;
 import org.testng.Assert;
@@ -11,122 +10,93 @@ import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
 
-public class GitHubTest extends TestBase{
+import static helpers.DataGenerator.stringGenerator;
 
-    public StartLoggedPage logIn(String userLogin, String userPassword) {
-        StartUnloggedPage startUnloggedPagePage = new StartUnloggedPage();
-        return startUnloggedPagePage.goToLoginPage().logIn(userLogin, userPassword);
-    }
+public class GitHubTest extends TestBase {
 
     @Test
     public void logInTest() {
-        StartLoggedPage startLoggedPage = logIn(PropertiesContainer.get("test.login"), PropertiesContainer.get("test.password"));
-        Assert.assertEquals(startLoggedPage.getTitleText(), "GitHub");
+        HomeLoggedPage startLoggedPage = new HomeLoggedPage();
+        Assert.assertEquals(startLoggedPage.getTitleText(), "GitHub", "Title is different.");
     }
 
     @Test
     public void createRepo() {
-        StartLoggedPage startLoggedPage = logIn(PropertiesContainer.get("test.login"), PropertiesContainer.get("test.password"));
-        RepoCreationPage repoCreationPagePage = startLoggedPage.goToRepoCreation();
-        RepoPage repoPage = repoCreationPagePage.createRepo(PropertiesContainer.get("test.repositoryName"));
-        Assert.assertEquals(repoPage.getTitleText(), "Quick setup");
-
-        deleteRepo(repoPage);
+        RepoCreationPage repoCreationPagePage = new HomeLoggedPage().goToRepoCreation();
+        String repoName = stringGenerator("RepoName");
+        RepoOpenedPage repoPage = repoCreationPagePage.createRepo(repoName);
+        setRepoName(repoName);
+        deleteAfterTest.add(actions.deleteRepo);
+        Assert.assertEquals(repoPage.getTitleText(), PropertiesContainer.get("test.login") + "/" + repoName, "Title is different.");
     }
 
     @Test
     public void updateProfile() {
-        StartLoggedPage startLoggedPage = logIn(PropertiesContainer.get("test.login"), PropertiesContainer.get("test.password"));
-        EditProfilePage editProfilePage = startLoggedPage.goToProfilePage().goToEditProfilePage();
+        String profileName = stringGenerator("Unicorn");
+        String profileBio = stringGenerator("Bio");
+        String profileCompany = stringGenerator("Company");
+        EditProfilePage editProfilePage = new HomeLoggedPage().goToProfilePage().goToEditProfilePage();
         String pictureBeforeUpdate = editProfilePage.getImageChecker().getAttribute("src");
         editProfilePage = editProfilePage.upDateAvatar(new File("src/main/resources/unicorn.jpg").getAbsolutePath());
         String pictureAfterUpdate = editProfilePage.getImageChecker().getAttribute("src");
-        ProfilePage profilePage = editProfilePage.upDateProfile(
-                PropertiesContainer.get("test.profileName"),
-                PropertiesContainer.get("test.profileBio"),
-                PropertiesContainer.get("test.profileCompany")).goToProfileAfterUpdate();
+        ProfilePage profilePage = editProfilePage.upDateProfile(profileName, profileBio, profileCompany).goToProfileAfterUpdate();
+        deleteAfterTest.add(actions.resetProfileInfo);
         List<Base> listOfProfileInformation = profilePage.getProfileInformation();
         List<String> itemsText = new ArrayList<>();
-        for(Base info: listOfProfileInformation) {
+        for (Base info : listOfProfileInformation) {
             itemsText.add(info.getText());
         }
-        List<String> propertiesTexts = new ArrayList<>();
-        propertiesTexts.add(PropertiesContainer.get("test.profileName"));
-        propertiesTexts.add(PropertiesContainer.get("test.profileBio"));
-        propertiesTexts.add(PropertiesContainer.get("test.profileCompany"));
 
-        Assert.assertTrue(itemsText.containsAll(propertiesTexts));
-        Assert.assertTrue(!pictureAfterUpdate.equals(pictureBeforeUpdate));
-
-        deleteProfileInfo(profilePage);
-        }
-
-        @Test
-        public void issueNotification() throws Exception {
-        StartLoggedPage startLoggedPage = logIn(PropertiesContainer.get("test.login"),PropertiesContainer.get("test.password"));
-//        RepoCreationPage repoCreationPagePage = startLoggedPage.goToRepoCreation();
-//        RepoPage repoPage = repoCreationPagePage.createRepo(PropertiesContainer.get("test.repositoryName"));
-         Driver.get().get("https://github.com/glaaadis/Gladiko");
-            RepoPage repoPage = new RepoPage();
-                    repoPage.subscription(RepoPage.subscriptionTypes.Watch);
-
-            IssueCreationPage issueCreationPage = repoPage.goToIssues().goToIssueCreation();
-            issueCreationPage.makeAssigneer(PropertiesContainer.get("test.login"));
-            issueCreationPage.markWithLabel();
-            IssuesPage issuesPage = issueCreationPage.fillTheIssue(PropertiesContainer.get("test.issueCreationTitle"), PropertiesContainer.get("test.issueCreationDescription"));
-            String createdIssueUrl = issuesPage.getCurrentUrl();
-            StartLoggedPage loggedPage = new StartLoggedPage().signOut().goToLoginPage().logIn(PropertiesContainer.get("test.otherlogin"),PropertiesContainer.get("test.otherpassword"));
-//            loggedPage.search(PropertiesContainer.get("test.repositoryName"));
-            List<SearchResultPage> searchResults = loggedPage.search("Gladiko").resultsOfSearch();
-            SearchResultPage resultPage = null;
-            for (SearchResultPage searchResult: searchResults) {
-                String link = searchResult.getSearches().getAttribute("href");
-                if (link.equals("https://github.com/glaaadis/Gladiko")) {
-//                if (link.equals("https://github.com/"+PropertiesContainer.get("test.login")+"/"+PropertiesContainer.get("test.repositoryName"))) {
-                    resultPage = searchResult;
-                    break;
-                }
-            }
-            if (resultPage == null) {
-                throw new Exception("Searched element wasn't found");
-            }
-            resultPage.getSearches().click();
-            RepoPage anotherRepoPage = new RepoPage();
-            List<IssuesPage> listOfIssuesPage = new ArrayList<>();
-//            anotherRepoPage.goToIssues();
-//            IssuesPage issuesPage1 = anotherRepoPage.goToIssues().getCreatedIssues();
-            listOfIssuesPage = anotherRepoPage.goToIssues().getCreatedIssues();
-            IssuesPage foundedIssuePage = null;
-            for (IssuesPage onePage: listOfIssuesPage) {
-                String issueUrl = onePage.getSearchResult().getAttribute("href");
-                if (issueUrl.equals(createdIssueUrl)) {
-                    foundedIssuePage = onePage;
-                    break;
-                }
-            }
-            foundedIssuePage.getSearchResult().click();
-            IssueCreationPage openedIssue = new IssueCreationPage();
-            openedIssue.leaveCommentToUser(PropertiesContainer.get("test.login"), PropertiesContainer.get("test.comment"));
-
-            // remove issues from story
-            // make find all issues
-            // watch it doesn't work correctly
-        }
-
-
-    private void deleteRepo(RepoPage repoPage) {
-        SettingsPage settingsPage = repoPage.goToSettings();
-        settingsPage.deleteRepoButton().click();
-        settingsPage.deleteRepo(PropertiesContainer.get("test.repositoryName"));
+        Assert.assertTrue(itemsText.contains(profileName), "Profile name is wrong.");
+        Assert.assertTrue(itemsText.contains(profileBio), "Profile bio is absent.");
+        Assert.assertTrue(itemsText.contains(profileCompany), "Profile company is absent.");
+        Assert.assertTrue(!pictureAfterUpdate.equals(pictureBeforeUpdate), "Avatar picture was same, as previous one.");
     }
 
-    private void deleteProfileInfo(ProfilePage profilePage) {
-        profilePage.goToEditProfilePage().upDateAvatar(new File("src/main/resources/no_unicorn.png").getAbsolutePath()).deleteAllInfoFromProfile();
+    @Test
+    public void issueNotification() throws Exception {
+        String repoName = stringGenerator("Nagibator");
+        RepoOpenedPage repoPage = new HomeLoggedPage().goToRepoCreation().createRepo(repoName);
+        setRepoName(repoName);
+        deleteAfterTest.add(actions.deleteRepo);
+        repoPage.subscription(RepoOpenedPage.subscriptionTypes.Watch);
+        IssueCreationPage issueCreationPage = repoPage.goToIssues().goToIssueCreation();
+        issueCreationPage.makeAssigneer(PropertiesContainer.get("test.login"));
+        List<IssueCreationPage.typesOfIssue> allLabels = new ArrayList<>();
+        allLabels.add(IssueCreationPage.typesOfIssue.Bug);
+        allLabels.add(IssueCreationPage.typesOfIssue.FirstIssue);
+        issueCreationPage.markWithLabel(allLabels);
+        String issueTitle = stringGenerator("Danger!");
+        String issueDescription = stringGenerator("Glavatar");
+        IssuesPage issuesPage = issueCreationPage.fillTheIssue(issueTitle, issueDescription);
+        String createdIssueUrl = issuesPage.getCurrentUrl();
+        HomeLoggedPage loggedPage = new HomeLoggedPage().signOut().goToLoginPage().logIn(PropertiesContainer.get("test.otherlogin"), PropertiesContainer.get("test.otherpassword"));
+        setNeedToRelogin(true);
+        List<SearchResultRepoPage> searchResults = loggedPage.search(repoName).resultsOfSearch();
+        SearchResultRepoPage resultPage = null;
+        for (SearchResultRepoPage searchResult : searchResults) {
+            String link = searchResult.getSearches().getAttribute("href");
+            if (link.equals("https://github.com/"+PropertiesContainer.get("test.login")+"/"+repoName)) {
+                resultPage = searchResult;
+                break;
+            }
+        }
+        if (resultPage == null) {
+            throw new Exception("Searched repository wasn't found");
+        }
+        resultPage.getSearches().click();
+        RepoOpenedPage anotherRepoPage = new RepoOpenedPage();
+        List<IssuesPage> listOfIssuesPage = anotherRepoPage.goToIssues().getCreatedIssue(PropertiesContainer.get("test.login"), repoName);
+        IssuesPage foundedIssuePage = null;
+        for (IssuesPage onePage : listOfIssuesPage) {
+            String issueUrl = onePage.getSearchResult().getAttribute("href");
+            if (issueUrl.equals(createdIssueUrl)) {
+                foundedIssuePage = onePage;
+                break;
+            }
+        }
+        foundedIssuePage.getSearchResult().click();
+        IssueCreationPage openedIssue = new IssueCreationPage();
+        openedIssue.leaveCommentToUser(PropertiesContainer.get("test.login"), stringGenerator("Sad"));
     }
 }
-
-//RepoPage - переинициализирует title (29 of code)
-//EditProfilePage - upDateProfile - поддержка нескольких вариаций данных
-
-//IssueCreationPage - make labels dynamics
-//RepoPage, IssuePage - make correct init of elements
